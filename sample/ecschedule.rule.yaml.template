@@ -1,0 +1,16 @@
+- name: {{.Name}}
+  {{if .Disabled}}disabled: true{{printf "\n  "}}{{end -}}
+  description: {{.Description}}
+  scheduleExpression: {{.ScheduleExpression}}
+  taskDefinition: kirei-batch
+  launch_type: FARGATE
+  network_configuration:
+    aws_vpc_configuration:
+      subnets:
+      - {{"{{"}} must_env "SUBNET_1" }}
+      - {{"{{"}} must_env "SUBNET_2" }}
+      security_groups:
+      - {{"{{"}} must_env "SECURITY_GROUP" }}
+  containerOverrides:
+  - name: app
+    command: {{.Command}}

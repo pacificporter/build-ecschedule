@@ -1,0 +1,50 @@
+region: ap-northeast-1
+cluster: tokyo-production
+role: ecs-events
+rules:
+- name: taskName1
+  description: task 1
+  scheduleExpression: cron(30 15 ? * * *)
+  taskDefinition: kirei-batch
+  launch_type: FARGATE
+  network_configuration:
+    aws_vpc_configuration:
+      subnets:
+      - {{ must_env "SUBNET_1" }}
+      - {{ must_env "SUBNET_2" }}
+      security_groups:
+      - {{ must_env "SECURITY_GROUP" }}
+  containerOverrides:
+  - name: app
+    command: ['subcommand1', 'arg']
+- name: taskName2
+  description: task 2
+  scheduleExpression: cron(30 16 ? * * *)
+  taskDefinition: kirei-batch
+  launch_type: FARGATE
+  network_configuration:
+    aws_vpc_configuration:
+      subnets:
+      - {{ must_env "SUBNET_1" }}
+      - {{ must_env "SUBNET_2" }}
+      security_groups:
+      - {{ must_env "SECURITY_GROUP" }}
+  containerOverrides:
+  - name: app
+    command: ['subcommand2', 'arg']
+- name: taskName3
+  disabled: true
+  description: task e
+  scheduleExpression: cron(30 17 ? * * *)
+  taskDefinition: kirei-batch
+  launch_type: FARGATE
+  network_configuration:
+    aws_vpc_configuration:
+      subnets:
+      - {{ must_env "SUBNET_1" }}
+      - {{ must_env "SUBNET_2" }}
+      security_groups:
+      - {{ must_env "SECURITY_GROUP" }}
+  containerOverrides:
+  - name: app
+    command: ['subcommand3', 'arg']

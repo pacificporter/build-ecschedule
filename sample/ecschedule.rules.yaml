@@ -1,0 +1,19 @@
+- name: taskName1
+  description: task 1
+  scheduleExpression: >-
+    cron(30 15 ? * * *)
+  command: >-
+     ['subcommand1', 'arg']
+- name: taskName2
+  description: task 2
+  scheduleExpression: >-
+    cron(30 16 ? * * *)
+  command: >-
+     ['subcommand2', 'arg']
+- name: taskName3
+  disabled: true
+  description: task e
+  scheduleExpression: >-
+    cron(30 17 ? * * *)
+  command: >-
+     ['subcommand3', 'arg']
