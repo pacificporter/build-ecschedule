@@ -1,16 +1,14 @@
 module github.com/pacificporter/build-ecschedule
 
-go 1.18
+go 1.17
 
 require (
 	github.com/goccy/go-yaml v1.9.5
-	github.com/ssoroka/slice v0.0.0-20211028135151-81d3a5de7c11
 	github.com/urfave/cli/v2 v2.4.0
 )
 
 require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fatih/color v1.10.0 // indirect
 	github.com/mattn/go-colorable v0.1.8 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
