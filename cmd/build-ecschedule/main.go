@@ -11,7 +11,6 @@ import (
 	"text/template"
 
 	"github.com/goccy/go-yaml"
-	"github.com/ssoroka/slice"
 	"github.com/urfave/cli/v2"
 )
 
@@ -80,6 +79,15 @@ type prefix struct {
 	Cluster string
 }
 
+func stringContains(ss []string, s string) bool {
+	for _, v := range ss {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
 func buildECSchedule(c *cli.Context) error {
 	rulesBs, err := os.ReadFile(c.Path("rules"))
 	if err != nil {
@@ -119,11 +127,11 @@ func buildECSchedule(c *cli.Context) error {
 		if err := r.trimAndCheck(); err != nil {
 			return fmt.Errorf("trimAndCheckRule failed: %+v, %w", r, err)
 		}
-		if len(r.Environment) > 0 && !slice.Contains(r.Environment, env) {
+		if len(r.Environment) > 0 && !stringContains(r.Environment, env) {
 			log.Printf("skipped! rule.Name=%s", r.Name)
 			continue
 		}
-		if slice.Contains(ruleNames, r.Name) {
+		if stringContains(ruleNames, r.Name) {
 			return fmt.Errorf("detect duplicate rule names: %s", r.Name)
 		}
 		ruleNames = append(ruleNames, r.Name)
