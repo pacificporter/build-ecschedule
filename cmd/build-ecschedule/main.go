@@ -106,7 +106,10 @@ func buildECSchedule(c *cli.Context) error {
 	var b bytes.Buffer
 	b.Grow(len(tpl)*len(rules) + len(prefixTemplate))
 
-	pt := template.Must(template.New("template").Parse(string(prefixTemplate)))
+	pt, err := template.New("template").Parse(prefixTemplate)
+	if err != nil {
+		return fmt.Errorf("template.New(template).Parse() failed: %w", err)
+	}
 
 	pf := prefix{
 		Region:  c.String("region"),
@@ -117,7 +120,10 @@ func buildECSchedule(c *cli.Context) error {
 		return fmt.Errorf("t.Execute(prefix) failed:  %w", err)
 	}
 
-	t := template.Must(template.New("rule").Parse(string(tpl)))
+	t, err := template.New("rule").Parse(string(tpl))
+	if err != nil {
+		return fmt.Errorf("template.New(rule).Parse() failed: %w", err)
+	}
 
 	env := c.String("environment")
 
