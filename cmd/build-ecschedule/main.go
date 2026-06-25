@@ -94,9 +94,18 @@ func stringContains(ss []string, s string) bool {
 }
 
 func buildECSchedule(c *cli.Context) error {
-	for _, name := range []string{"rules", "template", "cluster"} {
-		if c.String(name) == "" {
-			return fmt.Errorf(`Required flag "%s" not set`, name)
+	// PathFlag は c.Path(), StringFlag は c.String() で取得し、空白のみは未設定として扱う。
+	required := []struct {
+		name  string
+		value string
+	}{
+		{"rules", c.Path("rules")},
+		{"template", c.Path("template")},
+		{"cluster", c.String("cluster")},
+	}
+	for _, f := range required {
+		if strings.TrimSpace(f.value) == "" {
+			return fmt.Errorf(`Required flag "%s" not set`, f.name)
 		}
 	}
 

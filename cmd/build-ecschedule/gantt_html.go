@@ -90,7 +90,12 @@ header .meta { color: #666; font-size: 11px; }
 			if drawW < 3 {
 				drawW = 3
 			}
-			fmt.Fprintf(&b, `<rect x="%d" y="0" width="%d" height="10" fill="%s"/>`, run[0], drawW, color)
+			// viewBox(0..1440)をはみ出さないよう、末尾付近では開始位置を左へ寄せる
+			x := run[0]
+			if x+drawW > 1440 {
+				x = 1440 - drawW
+			}
+			fmt.Fprintf(&b, `<rect x="%d" y="0" width="%d" height="10" fill="%s"/>`, x, drawW, color)
 		}
 		b.WriteString(`</svg></div></div>`)
 	}
