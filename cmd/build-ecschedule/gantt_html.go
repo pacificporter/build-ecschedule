@@ -25,9 +25,14 @@ body { margin: 0; font-family: -apple-system, "Helvetica Neue", "Hiragino Kaku G
 header { padding: 12px 16px; }
 header h1 { margin: 0 0 4px; font-size: 15px; }
 header .meta { color: #666; font-size: 11px; }
+.toolbar { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
+.toolbar input { width: 320px; max-width: 60vw; padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+.toolbar .count { color: #666; font-size: 11px; }
 .legend { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
-.legend span { display: inline-flex; align-items: center; gap: 4px; }
+.legend span { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
+.legend span.off { opacity: .35; text-decoration: line-through; }
 .legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+.row.hidden { display: none; }
 .chart { padding: 0 16px 40px; }
 .axis { display: flex; padding: 4px 16px; border-top: 1px solid #eee; }
 .axis .label-pad { width: var(--label-w); flex: none; }
@@ -56,9 +61,14 @@ header .meta { color: #666; font-size: 11px; }
 	fmt.Fprintf(&b, "<header><h1>ecschedule 実行スケジュール</h1>")
 	fmt.Fprintf(&b, `<div class="meta">%d ルール / 横軸 = 1 日 24 時間(%s, UTC%+d)。バーにホバーで詳細。日・曜日制約は cron 上は UTC 基準。</div>`,
 		len(rows), html.EscapeString(tz), offsetHours)
-	b.WriteString(`<div class="legend">`)
+	b.WriteString(`<div class="toolbar">`)
+	b.WriteString(`<input id="search" type="search" placeholder="名前・説明・コマンドで絞り込み" autocomplete="off">`)
+	b.WriteString(`<span class="count" id="count"></span>`)
+	b.WriteString(`</div>`)
+	b.WriteString(`<div class="legend" title="クリックで表示/非表示を切り替え">`)
 	for _, g := range legendGroups(rows) {
-		fmt.Fprintf(&b, `<span><i style="background:%s"></i>%s</span>`, groupColor(g), html.EscapeString(g))
+		fmt.Fprintf(&b, `<span class="lg" data-group="%s"><i style="background:%s"></i>%s</span>`,
+			html.EscapeString(g), groupColor(g), html.EscapeString(g))
 	}
 	b.WriteString(`</div></header>`)
 
@@ -81,7 +91,9 @@ header .meta { color: #666; font-size: 11px; }
 			cls += " disabled"
 		}
 		tip := buildTip(r, tz)
-		fmt.Fprintf(&b, `<div class="%s" data-tip="%s">`, cls, html.EscapeString(tip))
+		search := strings.ToLower(r.rule.Name + " " + r.rule.Description + " " + r.rule.Command)
+		fmt.Fprintf(&b, `<div class="%s" data-group="%s" data-search="%s" data-tip="%s">`,
+			cls, html.EscapeString(r.group), html.EscapeString(search), html.EscapeString(tip))
 		label := html.EscapeString(r.rule.Name)
 		if r.rule.Disabled {
 			label += " (disabled)"
@@ -126,6 +138,34 @@ header .meta { color: #666; font-size: 11px; }
     });
     row.addEventListener('mouseleave', function(){ tip.style.display = 'none'; });
   });
+
+  // 検索 + 凡例(グループ)フィルタ
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var search = document.getElementById('search');
+  var count = document.getElementById('count');
+  var offGroups = {};
+  function apply(){
+    var q = (search.value || '').toLowerCase().trim();
+    var visible = 0;
+    rows.forEach(function(row){
+      var g = row.getAttribute('data-group');
+      var hay = row.getAttribute('data-search') || '';
+      var ok = !offGroups[g] && (q === '' || hay.indexOf(q) >= 0);
+      row.classList.toggle('hidden', !ok);
+      if (ok) visible++;
+    });
+    count.textContent = visible + ' / ' + rows.length + ' 件';
+  }
+  search.addEventListener('input', apply);
+  document.querySelectorAll('.legend .lg').forEach(function(el){
+    el.addEventListener('click', function(){
+      var g = el.getAttribute('data-group');
+      offGroups[g] = !offGroups[g];
+      el.classList.toggle('off', !!offGroups[g]);
+      apply();
+    });
+  });
+  apply();
 })();
 </script>
 </body>
