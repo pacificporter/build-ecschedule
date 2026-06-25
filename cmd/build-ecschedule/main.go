@@ -19,13 +19,18 @@ func main() {
 		Name:   "build-ecschedule",
 		Usage:  "a tool to build ecschedule.yaml (https://github.com/Songmu/ecschedule) from rules.yaml and template",
 		Action: buildECSchedule,
+		// NOTE: ここでは Required を付けない。Required な global flag は gantt 等の
+		// サブコマンド実行時にも強制されてしまうため、必須チェックは buildECSchedule 内で行う。
 		Flags: []cli.Flag{
-			&cli.PathFlag{Name: "rules", Required: true, Usage: "rules YAML file"},
+			&cli.PathFlag{Name: "rules", Usage: "rules YAML file"},
 			&cli.PathFlag{Name: "output", Value: "ecschedule.yaml", Usage: "output file"},
-			&cli.PathFlag{Name: "template", Required: true, Usage: "template file"},
+			&cli.PathFlag{Name: "template", Usage: "template file"},
 			&cli.StringFlag{Name: "region", Value: "ap-northeast-1", Usage: "aws region"},
-			&cli.StringFlag{Name: "cluster", Required: true, Usage: "AWS Cluster"},
+			&cli.StringFlag{Name: "cluster", Usage: "AWS Cluster"},
 			&cli.StringFlag{Name: "environment", Value: "sandbox", Usage: "environment"},
+		},
+		Commands: []*cli.Command{
+			ganttCommand,
 		},
 	}
 
@@ -89,6 +94,21 @@ func stringContains(ss []string, s string) bool {
 }
 
 func buildECSchedule(c *cli.Context) error {
+	// PathFlag は c.Path(), StringFlag は c.String() で取得し、空白のみは未設定として扱う。
+	required := []struct {
+		name  string
+		value string
+	}{
+		{"rules", c.Path("rules")},
+		{"template", c.Path("template")},
+		{"cluster", c.String("cluster")},
+	}
+	for _, f := range required {
+		if strings.TrimSpace(f.value) == "" {
+			return fmt.Errorf(`Required flag "%s" not set`, f.name)
+		}
+	}
+
 	rulesBs, err := os.ReadFile(c.Path("rules"))
 	if err != nil {
 		return fmt.Errorf("os.ReadFile(%s) failed: %w", c.Path("rules"), err)
