@@ -16,25 +16,29 @@ func renderHTML(rows []ganttRow, offsetHours int, tz string) string {
 <meta charset="utf-8">
 <title>ecschedule gantt</title>
 <style>
-:root { --label-w: 320px; --row-h: 20px; }
+:root { --label-w: 320px; --row-h: 34px; }
 * { box-sizing: border-box; }
 body { margin: 0; font-family: -apple-system, "Helvetica Neue", "Hiragino Kaku Gothic ProN", Meiryo, sans-serif; font-size: 12px; color: #222; }
-header { padding: 12px 16px; border-bottom: 1px solid #ddd; position: sticky; top: 0; background: #fff; z-index: 5; }
+/* ヘッダーと時刻軸をひとつの sticky にまとめ、行がその下にスクロールするようにする
+   (個別 sticky + 固定 top だとヘッダー高とずれて先頭行が隠れるため) */
+.topbar { position: sticky; top: 0; z-index: 5; background: #fff; border-bottom: 1px solid #ccc; }
+header { padding: 12px 16px; }
 header h1 { margin: 0 0 4px; font-size: 15px; }
 header .meta { color: #666; font-size: 11px; }
 .legend { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .legend span { display: inline-flex; align-items: center; gap: 4px; }
 .legend i { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
 .chart { padding: 0 16px 40px; }
-.axis { display: flex; position: sticky; top: var(--axis-top, 96px); background: #fff; z-index: 4; border-bottom: 1px solid #ccc; }
+.axis { display: flex; padding: 4px 16px; border-top: 1px solid #eee; }
 .axis .label-pad { width: var(--label-w); flex: none; }
-.axis .ticks { position: relative; flex: 1; height: 20px; }
-.axis .ticks span { position: absolute; transform: translateX(-50%); color: #888; font-size: 10px; top: 4px; }
+.axis .ticks { position: relative; flex: 1; height: 16px; }
+.axis .ticks span { position: absolute; transform: translateX(-50%); color: #888; font-size: 10px; top: 2px; }
 .row { display: flex; align-items: center; height: var(--row-h); border-bottom: 1px solid #f2f2f2; }
 .row:hover { background: #f6fbff; }
 .row.disabled { opacity: .4; }
-.row .label { width: var(--label-w); flex: none; padding-right: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.row .label .desc { color: #999; margin-left: 6px; }
+.row .label { width: var(--label-w); flex: none; padding-right: 8px; display: flex; flex-direction: column; justify-content: center; overflow: hidden; }
+.row .label .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .label .desc { color: #999; font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .track { position: relative; flex: 1; height: 100%;
   background-image: repeating-linear-gradient(to right, #eee 0 1px, transparent 1px calc(100% / 24)); }
 .track svg { display: block; width: 100%; height: 100%; }
@@ -47,7 +51,8 @@ header .meta { color: #666; font-size: 11px; }
 <body>
 `)
 
-	// ヘッダー + 凡例
+	// ヘッダー + 凡例 + 時刻軸を 1 つの sticky(.topbar)にまとめる
+	b.WriteString(`<div class="topbar">`)
 	fmt.Fprintf(&b, "<header><h1>ecschedule 実行スケジュール</h1>")
 	fmt.Fprintf(&b, `<div class="meta">%d ルール / 横軸 = 1 日 24 時間(%s, UTC%+d)。バーにホバーで詳細。日・曜日制約は cron 上は UTC 基準。</div>`,
 		len(rows), html.EscapeString(tz), offsetHours)
@@ -57,8 +62,6 @@ header .meta { color: #666; font-size: 11px; }
 	}
 	b.WriteString(`</div></header>`)
 
-	b.WriteString(`<div class="chart">`)
-
 	// 時刻軸
 	b.WriteString(`<div class="axis"><div class="label-pad"></div><div class="ticks">`)
 	for h := 0; h <= 24; h += 2 {
@@ -66,6 +69,9 @@ header .meta { color: #666; font-size: 11px; }
 		fmt.Fprintf(&b, `<span style="left:%.4f%%">%d</span>`, left, h)
 	}
 	b.WriteString(`</div></div>`)
+	b.WriteString(`</div>`) // .topbar
+
+	b.WriteString(`<div class="chart">`)
 
 	// 各行
 	for _, r := range rows {
@@ -80,7 +86,7 @@ header .meta { color: #666; font-size: 11px; }
 		if r.rule.Disabled {
 			label += " (disabled)"
 		}
-		fmt.Fprintf(&b, `<div class="label">%s<span class="desc">%s</span></div>`,
+		fmt.Fprintf(&b, `<div class="label"><span class="name">%s</span><span class="desc">%s</span></div>`,
 			label, html.EscapeString(r.rule.Description))
 		b.WriteString(`<div class="track"><svg viewBox="0 0 1440 10" preserveAspectRatio="none">`)
 		for _, run := range r.runs {
