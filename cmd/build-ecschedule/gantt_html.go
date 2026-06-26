@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func renderHTML(rows []ganttRow, offsetHours int, tz string) string {
+func renderHTML(rows []ganttRow, offsetHours int, tz, sortMode string) string {
 	var b strings.Builder
 
 	b.WriteString(`<!DOCTYPE html>
@@ -27,6 +27,8 @@ header h1 { margin: 0 0 4px; font-size: 15px; }
 header .meta { color: #666; font-size: 11px; }
 .toolbar { margin-top: 8px; display: flex; align-items: center; gap: 10px; }
 .toolbar input { width: 320px; max-width: 60vw; padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 4px; }
+.toolbar label { color: #666; font-size: 11px; }
+.toolbar select { font-size: 12px; padding: 3px 4px; }
 .toolbar .count { color: #666; font-size: 11px; }
 .legend { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .legend span { display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
@@ -63,6 +65,19 @@ header .meta { color: #666; font-size: 11px; }
 		len(rows), html.EscapeString(tz), offsetHours)
 	b.WriteString(`<div class="toolbar">`)
 	b.WriteString(`<input id="search" type="search" placeholder="名前・説明・コマンドで絞り込み" autocomplete="off">`)
+	b.WriteString(`<label>並び替え <select id="sort">`)
+	for _, opt := range []struct{ val, label string }{
+		{"time", "実行時刻順"},
+		{"name", "バッチ名順"},
+		{"file", "記述順"},
+	} {
+		sel := ""
+		if opt.val == sortMode {
+			sel = " selected"
+		}
+		fmt.Fprintf(&b, `<option value="%s"%s>%s</option>`, opt.val, sel, opt.label)
+	}
+	b.WriteString(`</select></label>`)
 	b.WriteString(`<span class="count" id="count"></span>`)
 	b.WriteString(`</div>`)
 	b.WriteString(`<div class="legend" title="クリックで表示/非表示を切り替え">`)
@@ -81,7 +96,7 @@ header .meta { color: #666; font-size: 11px; }
 	b.WriteString(`</div></div>`)
 	b.WriteString(`</div>`) // .topbar
 
-	b.WriteString(`<div class="chart">`)
+	b.WriteString(`<div class="chart" id="chart">`)
 
 	// 各行
 	for _, r := range rows {
@@ -92,8 +107,10 @@ header .meta { color: #666; font-size: 11px; }
 		}
 		tip := buildTip(r, tz)
 		search := strings.ToLower(r.rule.Name + " " + r.rule.Description + " " + r.rule.Command)
-		fmt.Fprintf(&b, `<div class="%s" data-group="%s" data-search="%s" data-tip="%s">`,
-			cls, html.EscapeString(r.group), html.EscapeString(search), html.EscapeString(tip))
+		fmt.Fprintf(&b, `<div class="%s" data-group="%s" data-search="%s" data-name="%s" data-first="%d" data-index="%d" data-tip="%s">`,
+			cls, html.EscapeString(r.group), html.EscapeString(search),
+			html.EscapeString(strings.ToLower(r.rule.Name)), firstOr(r.minutes, 1<<30), r.fileIndex,
+			html.EscapeString(tip))
 		label := html.EscapeString(r.rule.Name)
 		if r.rule.Disabled {
 			label += " (disabled)"
@@ -139,11 +156,32 @@ header .meta { color: #666; font-size: 11px; }
     row.addEventListener('mouseleave', function(){ tip.style.display = 'none'; });
   });
 
-  // 検索 + 凡例(グループ)フィルタ
+  // 検索 + 凡例(グループ)フィルタ + 並び替え
   var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
   var search = document.getElementById('search');
   var count = document.getElementById('count');
+  var sortSel = document.getElementById('sort');
+  var chart = document.getElementById('chart');
   var offGroups = {};
+
+  function sortRows(){
+    var mode = sortSel.value;
+    var sorted = rows.slice();
+    sorted.sort(function(a, b){
+      if (mode === 'name') {
+        return a.getAttribute('data-name').localeCompare(b.getAttribute('data-name'));
+      }
+      if (mode === 'file') {
+        return (+a.getAttribute('data-index')) - (+b.getAttribute('data-index'));
+      }
+      // time: 開始時刻 → 名前
+      var d = (+a.getAttribute('data-first')) - (+b.getAttribute('data-first'));
+      if (d !== 0) return d;
+      return a.getAttribute('data-name').localeCompare(b.getAttribute('data-name'));
+    });
+    sorted.forEach(function(row){ chart.appendChild(row); });
+  }
+  sortSel.addEventListener('change', sortRows);
   function apply(){
     var q = (search.value || '').toLowerCase().trim();
     var visible = 0;

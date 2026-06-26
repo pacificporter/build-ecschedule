@@ -23,7 +23,7 @@ var ganttCommand = &cli.Command{
 		&cli.PathFlag{Name: "output", Value: "ecschedule-gantt.html", Usage: "output HTML file"},
 		&cli.IntFlag{Name: "offset", Value: 9, Usage: "timezone offset in hours from UTC (JST=9)"},
 		&cli.StringFlag{Name: "tz", Value: "JST", Usage: "timezone label for display"},
-		&cli.StringFlag{Name: "sort", Value: "time", Usage: "row order: time (first fired time) or file (rules order)"},
+		&cli.StringFlag{Name: "sort", Value: "time", Usage: "initial row order: time (first fired time), name, or file (rules order)"},
 	},
 }
 
@@ -39,7 +39,7 @@ func runGantt(c *cli.Context) error {
 
 	offsetMin := c.Int("offset") * 60
 	rows := make([]ganttRow, 0, len(rules))
-	for _, r := range rules {
+	for i, r := range rules {
 		r.Name = strings.TrimSpace(r.Name)
 		r.Description = strings.TrimSpace(r.Description)
 		r.ScheduleExpression = strings.TrimSpace(r.ScheduleExpression)
@@ -51,15 +51,23 @@ func runGantt(c *cli.Context) error {
 		}
 		minutes := cron.firedMinutes(offsetMin)
 		rows = append(rows, ganttRow{
-			rule:    r,
-			cron:    cron,
-			group:   commandBinary(r.Command),
-			minutes: minutes,
-			runs:    mergeRuns(minutes),
+			rule:      r,
+			cron:      cron,
+			group:     commandBinary(r.Command),
+			minutes:   minutes,
+			runs:      mergeRuns(minutes),
+			fileIndex: i,
 		})
 	}
 
-	if c.String("sort") != "file" {
+	switch c.String("sort") {
+	case "file":
+		// rules.yaml の記述順のまま
+	case "name":
+		sort.SliceStable(rows, func(i, j int) bool {
+			return rows[i].rule.Name < rows[j].rule.Name
+		})
+	default: // "time"
 		sort.SliceStable(rows, func(i, j int) bool {
 			fi, fj := firstOr(rows[i].minutes, 1<<30), firstOr(rows[j].minutes, 1<<30)
 			if fi != fj {
@@ -69,7 +77,11 @@ func runGantt(c *cli.Context) error {
 		})
 	}
 
-	out := renderHTML(rows, c.Int("offset"), c.String("tz"))
+	sortMode := c.String("sort")
+	if sortMode != "name" && sortMode != "file" {
+		sortMode = "time"
+	}
+	out := renderHTML(rows, c.Int("offset"), c.String("tz"), sortMode)
 	if err := os.WriteFile(c.Path("output"), []byte(out), 0600); err != nil {
 		return fmt.Errorf("os.WriteFile(%s) failed: %w", c.Path("output"), err)
 	}
@@ -78,11 +90,12 @@ func runGantt(c *cli.Context) error {
 }
 
 type ganttRow struct {
-	rule    Rule
-	cron    cronExpr
-	group   string
-	minutes []int    // 発火する分(JST, 0..1439)昇順・重複なし
-	runs    [][2]int // 連続区間 [start, end)(0..1440)
+	rule      Rule
+	cron      cronExpr
+	group     string
+	minutes   []int    // 発火する分(JST, 0..1439)昇順・重複なし
+	runs      [][2]int // 連続区間 [start, end)(0..1440)
+	fileIndex int      // rules.yaml 上の記述順
 }
 
 // ---- cron parsing -----------------------------------------------------------
