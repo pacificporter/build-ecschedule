@@ -65,7 +65,8 @@ func runGantt(c *cli.Context) error {
 		// rules.yaml の記述順のまま
 	case "name":
 		sort.SliceStable(rows, func(i, j int) bool {
-			return rows[i].rule.Name < rows[j].rule.Name
+			// HTML 側の並び替え(data-name は小文字化)と順序を揃えるため小文字で比較する
+			return strings.ToLower(rows[i].rule.Name) < strings.ToLower(rows[j].rule.Name)
 		})
 	default: // "time"
 		sort.SliceStable(rows, func(i, j int) bool {
@@ -73,7 +74,7 @@ func runGantt(c *cli.Context) error {
 			if fi != fj {
 				return fi < fj
 			}
-			return rows[i].rule.Name < rows[j].rule.Name
+			return strings.ToLower(rows[i].rule.Name) < strings.ToLower(rows[j].rule.Name)
 		})
 	}
 

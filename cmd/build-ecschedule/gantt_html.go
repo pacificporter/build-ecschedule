@@ -80,9 +80,9 @@ header .meta { color: #666; font-size: 11px; }
 	b.WriteString(`</select></label>`)
 	b.WriteString(`<span class="count" id="count"></span>`)
 	b.WriteString(`</div>`)
-	b.WriteString(`<div class="legend" title="クリックで表示/非表示を切り替え">`)
+	b.WriteString(`<div class="legend" title="クリック / Enter / Space で表示・非表示を切り替え">`)
 	for _, g := range legendGroups(rows) {
-		fmt.Fprintf(&b, `<span class="lg" data-group="%s"><i style="background:%s"></i>%s</span>`,
+		fmt.Fprintf(&b, `<span class="lg" data-group="%s" role="button" tabindex="0" aria-pressed="true"><i style="background:%s"></i>%s</span>`,
 			html.EscapeString(g), groupColor(g), html.EscapeString(g))
 	}
 	b.WriteString(`</div></header>`)
@@ -162,7 +162,7 @@ header .meta { color: #666; font-size: 11px; }
   var count = document.getElementById('count');
   var sortSel = document.getElementById('sort');
   var chart = document.getElementById('chart');
-  var offGroups = {};
+  var offGroups = Object.create(null); // プロトタイプ汚染を避けるため null プロトタイプ辞書
 
   function sortRows(){
     var mode = sortSel.value;
@@ -196,11 +196,16 @@ header .meta { color: #666; font-size: 11px; }
   }
   search.addEventListener('input', apply);
   document.querySelectorAll('.legend .lg').forEach(function(el){
-    el.addEventListener('click', function(){
+    function toggle(){
       var g = el.getAttribute('data-group');
       offGroups[g] = !offGroups[g];
       el.classList.toggle('off', !!offGroups[g]);
+      el.setAttribute('aria-pressed', offGroups[g] ? 'false' : 'true');
       apply();
+    }
+    el.addEventListener('click', toggle);
+    el.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
     });
   });
   apply();
